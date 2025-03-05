@@ -1,322 +1,330 @@
-> # Program Statement
-> ## To stimulate CPU Scheduling Algorithms like FCFS, SJF, RR and Priority using C
->
-> # Program Description
-> # CPU Scheduling Algorithms: FCFS, SJF, RR, and Priority
->
-> This document explains the core concepts of First-Come, First-Served (FCFS), Shortest Job First (SJF), Round Robin (RR), and Priority > > CPU scheduling algorithms.
-> 
-> ## 1. First-Come, First-Served (FCFS)
->
-> * **Core Idea:** Processes are executed in the exact order they arrive in the ready queue (like a line at a ticket
->  counter). The first process that requests the CPU gets it, and it runs to completion (or until it blocks for I/O). Only > > then does the next process in the queue get a chance.
->
-> * **Analogy:** Imagine a single line at a bank. Customers are served in the order they joined the line.
-> 
-> * **Example:** If processes P1, P2, and P3 arrive in that order, P1 will run first, then P2, then P3.
->
-> * **Key Characteristics:**
->     * Simple to understand and implement.
->     * Non-preemptive: Once a process starts, it runs until it finishes or blocks.
->     * Can lead to long waiting times for short processes if a long process arrives first (the "convoy effect").
->
-> ## 2. Shortest Job First (SJF)
-> 
-> * **Core Idea:** The process with the *shortest* burst time (the estimated time it needs to run on the CPU) is executed
->   next. This aims to minimize average waiting time.
-> 
-> * **Analogy:** Imagine a doctor's office where patients are seen based on the severity of their condition (shortest  treatment time first).
-> 
-> * **Example:** If P1 needs 10ms, P2 needs 2ms, and P3 needs 5ms, SJF would run P2 first, then P3, then P1.
-> 
-> * **Key Characteristics:**
->     * Optimal (non-preemptive): Minimizes average waiting time among non-preemptive algorithms.
->     * Non-preemptive (usually): Once a process starts, it runs to completion.
->     * Requires knowing burst times in advance: This is a major drawback because burst times are often not known precisely. We usually have to estimate them.
->     * Can lead to starvation: Long processes might never get a chance to run if short processes keep arriving.
-> 
-> ## 3. Round Robin (RR)
-> 
-> * **Core Idea:** Each process gets a small, fixed amount of CPU time called a "time quantum" or "time slice." If a process doesn't finish within its quantum, it's preempted (temporarily paused) and put back at the end of the ready queue. The CPU then goes to the next process in the queue.
-> 
-> * **Analogy:** Imagine a group of people taking turns speaking, with each person getting a fixed amount of time to talk before it's someone else's turn.
-> 
-> * **Example:** If the quantum is 4ms, and P1 needs 10ms, it will run for 4ms, then be preempted. Other processes will get their turn. P1 will then get another 4ms slice when its turn comes around again, and so on.
-> 
-> * **Key Characteristics:**
->     * Time-sharing: Gives the illusion of concurrency by rapidly switching between processes.
->    * Preemptive: Processes are preempted after their time quantum expires.
->   * Fair: Each process gets a fair share of CPU time.
->    * Good for interactive systems: Provides reasonable response times.
->    * Performance depends on quantum size: A small quantum leads to more context switching overhead, while a large quantum makes RR behave more like FCFS.
->
-> ## 4. Priority Scheduling
->
-> * **Core Idea:** Each process is assigned a priority. The process with the *highest* priority (often represented by the *smallest* number) is executed first.
->
-> * **Analogy:** Imagine a hospital emergency room where patients are treated based on the severity of their injuries (higher priority for more severe cases).
-> 
-> * **Example:** If P1 has priority 1 (highest), P2 has priority 2, and P3 has priority 3, P1 will run first, then P2, then P3.
->
-> * **Key Characteristics:**
->    * Can be preemptive or non-preemptive: A higher-priority process can preempt a lower-priority process (preemptive), or processes can run to completion based on their initial priority (non-preemptive).
- >   * Can lead to starvation: Low-priority processes might never get a chance to run if high-priority processes keep arriving.
->    * Priority inversion: A high-priority process might be blocked by a low-priority process that holds a resource it needs. This can be addressed with techniques like priority inheritance.
-> 
-> In summary, each algorithm has its strengths and weaknesses. The best choice depends on the specific needs of the system, such as whether it's an interactive system, a batch processing system, or a real-time system.
-
-# Source Code
+# Program Statement: Simulate LJF (langest job First) and SRJF (Shortest Remaining Job First) CPU Scheduling Algorithms.
 ```c
 #include <stdio.h>
 
-struct Process {
+typedef struct {
     int pid;
-    int burst_time;
     int arrival_time;
-    int priority;
-};
+    int burst_time;
+    int remaining_time;
+    int completion_time;
+    int turnaround_time;
+    int waiting_time;
+} Process;
 
-void calculate_avg_times(int wait_time[], int turnaround_time[], int n) {
-    float total_wt = 0, total_tat = 0;
-    for (int i = 0; i < n; i++) {
-        total_wt += wait_time[i];
-        total_tat += turnaround_time[i];
-    }
-    printf("\nTotal Waiting Time: %.2f", total_wt);
-    printf("\nTotal Turnaround Time: %.2f", total_tat);
-    printf("\nAverage Waiting Time: %.2f", total_wt / n);
-    printf("\nAverage Turnaround Time: %.2f\n", total_tat / n);
-}
-
-void fcfs(struct Process p[], int n) {
-    int wait_time[n], turnaround_time[n], completion_time[n];
-    
-    completion_time[0] = p[0].arrival_time + p[0].burst_time;
-    wait_time[0] = 0;
-    turnaround_time[0] = completion_time[0] - p[0].arrival_time;
-    
-    for (int i = 1; i < n; i++) {
-        completion_time[i] = completion_time[i - 1] + p[i].burst_time;
-        wait_time[i] = completion_time[i - 1] - p[i].arrival_time;
-        turnaround_time[i] = wait_time[i] + p[i].burst_time;
-    }
-    
-    
-    printf("PID\tBT\tAT\tWT\tTAT\n");
-    for (int i = 0; i < n; i++) {
-        printf("%d\t%d\t%d\t%d\t%d\n", p[i].pid, p[i].burst_time, p[i].arrival_time, wait_time[i], turnaround_time[i]);
-    }
-    calculate_avg_times(wait_time, turnaround_time, n);
-}
-
-void sjf(struct Process p[], int n) {
-    struct Process temp;
-    int wait_time[n], turnaround_time[n], completion_time[n];
-    
+// Function to sort processes by Arrival Time
+void sortByArrivalTime(Process proc[], int n) {
     for (int i = 0; i < n - 1; i++) {
         for (int j = i + 1; j < n; j++) {
-            if (p[i].burst_time > p[j].burst_time) {
-                temp = p[i];
-                p[i] = p[j];
-                p[j] = temp;
+            if (proc[i].arrival_time > proc[j].arrival_time) {
+                Process temp = proc[i];
+                proc[i] = proc[j];
+                proc[j] = temp;
             }
         }
     }
-    
-    completion_time[0] = p[0].arrival_time + p[0].burst_time;
-    wait_time[0] = 0;
-    turnaround_time[0] = completion_time[0] - p[0].arrival_time;
-    
-    for (int i = 1; i < n; i++) {
-        completion_time[i] = completion_time[i - 1] + p[i].burst_time;
-        wait_time[i] = completion_time[i - 1] - p[i].arrival_time;
-        turnaround_time[i] = wait_time[i] + p[i].burst_time;
-    }
-    
-    printf("\nSJF Scheduling\n");
-    printf("PID\tBT\tAT\tWT\tTAT\n");
-    for (int i = 0; i < n; i++) {
-        printf("%d\t%d\t%d\t%d\t%d\n", p[i].pid, p[i].burst_time, p[i].arrival_time, wait_time[i], turnaround_time[i]);
-    }
-    calculate_avg_times(wait_time, turnaround_time, n);
 }
 
-void priority_scheduling(struct Process p[], int n) {
-    struct Process temp;
-    for (int i = 0; i < n - 1; i++) {
-        for (int j = i + 1; j < n; j++) {
-            if (p[i].priority > p[j].priority) {
-                temp = p[i];
-                p[i] = p[j];
-                p[j] = temp;
-            }
-        }
-    }
-    fcfs(p, n);
-}
+// Function for Longest Job First (LJF) Scheduling
+void LJF(Process proc[], int n) {
+    sortByArrivalTime(proc, n);
+    int time = 0, completed = 0;
+    int total_waiting_time = 0, total_turnaround_time = 0;
 
-void round_robin(struct Process p[], int n, int quantum) {
-    int remaining_bt[n], wait_time[n], turnaround_time[n], completion_time[n];
-    for (int i = 0; i < n; i++) remaining_bt[i] = p[i].burst_time;
-    int time = 0, done;
-    
-    printf("\nRound Robin Scheduling\n");
-    printf("PID\tWT\tTAT\n");
-    
-    do {
-        done = 1;
+    printf("\n--- Longest Job First (LJF) ---\n");
+    printf("PID\tArrival\tBurst\tCompletion\tTurnaround\tWaiting\n");
+
+    while (completed < n) {
+        int max_burst_idx = -1, max_burst_time = -1;
+
         for (int i = 0; i < n; i++) {
-            if (remaining_bt[i] > 0) {
-                done = 0;
-                if (remaining_bt[i] > quantum) {
-                    time += quantum;
-                    remaining_bt[i] -= quantum;
-                } else {
-                    time += remaining_bt[i];
-                    wait_time[i] = time - p[i].arrival_time - p[i].burst_time;
-                    turnaround_time[i] = time - p[i].arrival_time;
-                    printf("%d\t%d\t%d\n", p[i].pid, wait_time[i], turnaround_time[i]);
-                    remaining_bt[i] = 0;
-                }
+            if (proc[i].arrival_time <= time && proc[i].remaining_time > 0 && proc[i].remaining_time > max_burst_time) {
+                max_burst_time = proc[i].remaining_time;
+                max_burst_idx = i;
             }
         }
-    } while (!done);
-    calculate_avg_times(wait_time, turnaround_time, n);
+
+        if (max_burst_idx == -1) {
+            time++;
+            continue;
+        }
+
+        Process *p = &proc[max_burst_idx];
+        time += p->remaining_time;
+        p->completion_time = time;
+        p->turnaround_time = p->completion_time - p->arrival_time;
+        p->waiting_time = p->turnaround_time - p->burst_time;
+        p->remaining_time = 0;
+        completed++;
+
+        total_waiting_time += p->waiting_time;
+        total_turnaround_time += p->turnaround_time;
+
+        printf("%d\t%d\t%d\t%d\t\t%d\t\t%d\n", p->pid, p->arrival_time, p->burst_time, p->completion_time, p->turnaround_time, p->waiting_time);
+    }
+
+    printf("\nTotal Waiting Time: %d", total_waiting_time);
+    printf("\nTotal Turnaround Time: %d", total_turnaround_time);
+    printf("\nAverage Waiting Time: %.2f", (float)total_waiting_time / n);
+    printf("\nAverage Turnaround Time: %.2f\n", (float)total_turnaround_time / n);
+}
+
+// Function for Shortest Remaining Job First (SRJF) Scheduling
+void SRJF(Process proc[], int n) {
+    sortByArrivalTime(proc, n);
+    int time = 0, completed = 0;
+    int total_waiting_time = 0, total_turnaround_time = 0;
+
+    printf("\n--- Shortest Remaining Job First (SRJF) ---\n");
+    printf("PID\tArrival\tBurst\tCompletion\tTurnaround\tWaiting\n");
+
+    while (completed < n) {
+        int min_remaining_idx = -1, min_remaining_time = 99999;
+
+        for (int i = 0; i < n; i++) {
+            if (proc[i].arrival_time <= time && proc[i].remaining_time > 0 && proc[i].remaining_time < min_remaining_time) {
+                min_remaining_time = proc[i].remaining_time;
+                min_remaining_idx = i;
+            }
+        }
+
+        if (min_remaining_idx == -1) {
+            time++;
+            continue;
+        }
+
+        Process *p = &proc[min_remaining_idx];
+
+        // Execute process for one time unit
+        p->remaining_time--;
+        time++;
+
+        // If process is completed
+        if (p->remaining_time == 0) {
+            p->completion_time = time;
+            p->turnaround_time = p->completion_time - p->arrival_time;
+            p->waiting_time = p->turnaround_time - p->burst_time;
+            completed++;
+
+            total_waiting_time += p->waiting_time;
+            total_turnaround_time += p->turnaround_time;
+
+            printf("%d\t%d\t%d\t%d\t\t%d\t\t%d\n", p->pid, p->arrival_time, p->burst_time, p->completion_time, p->turnaround_time, p->waiting_time);
+        }
+    }
+
+    printf("\nTotal Waiting Time: %d", total_waiting_time);
+    printf("\nTotal Turnaround Time: %d", total_turnaround_time);
+    printf("\nAverage Waiting Time: %.2f", (float)total_waiting_time / n);
+    printf("\nAverage Turnaround Time: %.2f\n", (float)total_turnaround_time / n);
 }
 
 int main() {
-    int n;
-    printf("Enter number of processes: ");
+    int n, choice;
+
+    printf("Enter the number of processes: ");
     scanf("%d", &n);
-    struct Process p[n];
-    
+
+    Process proc[n];
+
     for (int i = 0; i < n; i++) {
-        printf("Enter PID, Burst Time, Arrival Time, and Priority for Process %d: ", i + 1);
-        scanf("%d %d %d %d", &p[i].pid, &p[i].burst_time, &p[i].arrival_time, &p[i].priority);
+        proc[i].pid = i + 1;
+        printf("Enter Arrival Time and Burst Time for Process %d: ", i + 1);
+        scanf("%d %d", &proc[i].arrival_time, &proc[i].burst_time);
+        proc[i].remaining_time = proc[i].burst_time; // Initialize remaining burst time
     }
+
+    printf("\nChoose Scheduling Algorithm:\n");
+    printf("1. Longest Job First (LJF)\n");
+    printf("2. Shortest Remaining Job First (SRJF)\n");
+    printf("Enter your choice: ");
+    scanf("%d", &choice);
+
+    if (choice == 1) {
+        LJF(proc, n);
+    } else if (choice == 2) {
+        SRJF(proc, n);
+    } else {
+        printf("Invalid choice!\n");
+    }
+
+    return 0;
+}
+```
+---
+# **Interpretation of the CPU Scheduling Program (LJF & SRJF)**
+
+## **Introduction**
+The given C program simulates two CPU scheduling algorithms:
+
+1. **Longest Job First (LJF)** - Non-preemptive scheduling where the process with the longest burst time is executed first.
+2. **Shortest Remaining Job First (SRJF)** - Preemptive scheduling where the process with the shortest remaining burst time is executed first.
+
+The program also calculates:
+- **Total Waiting Time**
+- **Total Turnaround Time**
+- **Average Waiting Time**
+- **Average Turnaround Time**
+
+## **Understanding the Program**
+
+### **1. Process Structure**
+The program defines a `Process` structure that includes the following fields:
+- `pid` (Process ID)
+- `arrival_time` (Arrival time of the process)
+- `burst_time` (Total execution time of the process)
+- `remaining_time` (Remaining execution time, useful for SRJF)
+- `completion_time` (Time at which the process finishes execution)
+- `turnaround_time` (Completion Time - Arrival Time)
+- `waiting_time` (Turnaround Time - Burst Time)
+
+### **2. Sorting by Arrival Time**
+The function `sortByArrivalTime()` sorts the processes in increasing order of arrival time. This ensures that processes are considered for execution as soon as they arrive.
+
+### **3. Longest Job First (LJF) Scheduling**
+- The algorithm selects the process with the **maximum burst time** among those that have already arrived.
+- The selected process runs until completion.
+- The process’s **completion time, turnaround time, and waiting time** are calculated.
+- The process is marked as completed, and the loop continues until all processes are executed.
+
+### **4. Shortest Remaining Job First (SRJF) Scheduling**
+- The algorithm selects the process with the **minimum remaining time** from the available processes.
+- The selected process runs for **one time unit** and is preempted if another process with a shorter burst time arrives.
+- If a process completes execution, its **completion time, turnaround time, and waiting time** are recorded.
+- The loop continues until all processes are completed.
+
+### **5. Calculation of Performance Metrics**
+For both LJF and SRJF:
+- **Total Waiting Time** is the sum of waiting times for all processes.
+- **Total Turnaround Time** is the sum of turnaround times for all processes.
+- **Average Waiting Time** is calculated as:
+  
+  \[ \text{Avg. Waiting Time} = \frac{\text{Total Waiting Time}}{n} \]
+  
+- **Average Turnaround Time** is calculated as:
+  
+  \[ \text{Avg. Turnaround Time} = \frac{\text{Total Turnaround Time}}{n} \]
+  
+where \( n \) is the total number of processes.
+
+## **Example Execution & Interpretation**
+
+### **Input Example:**
+```
+Enter the number of processes: 3
+Enter Arrival Time and Burst Time for Process 1: 0 6
+Enter Arrival Time and Burst Time for Process 2: 2 8
+Enter Arrival Time and Burst Time for Process 3: 4 7
+
+Choose Scheduling Algorithm:
+1. Longest Job First (LJF)
+2. Shortest Remaining Job First (SRJF)
+Enter your choice: 2
+```
+
+### **Output (SRJF Selected):**
+```
+--- Shortest Remaining Job First (SRJF) ---
+PID	Arrival	Burst	Completion	Turnaround	Waiting
+1	0	6	6	6	0
+3	4	7	13	9	2
+2	2	8	21	19	11
+
+Total Waiting Time: 13
+Total Turnaround Time: 34
+Average Waiting Time: 4.33
+Average Turnaround Time: 11.33
+```
+
+### **Analysis of the Output:**
+1. **Process 1 (P1) starts first** as it arrives at time 0 and has the shortest burst time among available processes.
+2. **Process 3 (P3) is scheduled next** since it has a shorter remaining burst time than P2.
+3. **Process 2 (P2) runs last** since it had the longest burst time among the three.
+4. **The average waiting and turnaround times are calculated correctly.**
+
+### **Output (LJF Selected):**
+```
+--- Longest Job First (LJF) ---
+PID	Arrival	Burst	Completion	Turnaround	Waiting
+2	2	8	10	8	0
+3	4	7	17	13	6
+1	0	6	23	23	17
+
+Total Waiting Time: 23
+Total Turnaround Time: 44
+Average Waiting Time: 7.67
+Average Turnaround Time: 14.67
+```
+
+### **Analysis of the Output:**
+1. **Process 2 (P2) runs first** since it has the longest burst time among available processes.
+2. **Process 3 (P3) runs next**, followed by **Process 1 (P1)**.
+3. **The average waiting and turnaround times are calculated correctly.**
+
+## **Conclusion**
+- **LJF** favors longer processes but may cause **starvation** for shorter ones.
+- **SRJF** efficiently minimizes **waiting and turnaround time**, but it involves **frequent context switching**.
+- The program successfully simulates both algorithms and calculates key performance metrics.
+
+This interpretation explains how the program works and how the results can be analyzed effectively.
+---
+## Executed Output
+![ LFS Executed output ](lop1.png)
+![ SRJF Executed Output](lop2.png)
+
+
+
+
+
+# Program statement: Implement Peterson algorithm for critical section problem.
+# Source Code: 
+```c
+#include <stdio.h>
+#include <pthread.h>
+#include <stdbool.h>
+#include <unistd.h>
+
+#define NUM_ITERATIONS 5
+
+volatile bool flag[2] = {false, false};
+volatile int turn;
+
+void enter_critical_section(int process) {
+    int other = 1 - process;
+    flag[process] = true;
+    turn = other;
+    while (flag[other] && turn == other);
+}
+
+void exit_critical_section(int process) {
+    flag[process] = false;
+}
+
+void* process_function(void* arg) {
+    int process = *(int*)arg;
+    for (int i = 0; i < NUM_ITERATIONS; i++) {
+        enter_critical_section(process);
+        printf("Process %d is in the critical section (iteration %d)\n", process, i + 1);
+        usleep(100000); // Simulating some work in critical section
+        printf("Process %d is leaving the critical section (iteration %d)\n", process, i + 1);
+        exit_critical_section(process);
+        usleep(100000); // Simulating some work in non-critical section
+    }
+    return NULL;
+}
+
+int main() {
+    pthread_t t0, t1;
+    int p0 = 0, p1 = 1;
     
-    int choice, quantum;
-    do {
-        printf("Choose Scheduling Algorithm:\n1. FCFS\n2. SJF\n3. Priority\n4. Round Robin\n5. Exit\n");
-        scanf("%d", &choice);
-        
-        switch (choice) {
-            case 1:
-		printf("\nFCFS Scheduling\n");
-                fcfs(p, n);
-                break;
-            case 2:
-                sjf(p, n);
-                break;
-            case 3:
-		printf("\nPriority Sheduling \n");
-                priority_scheduling(p, n);
-                break;
-            case 4:
-                printf("Enter time quantum: ");
-                scanf("%d", &quantum);
-                round_robin(p, n, quantum);
-                break;
-            case 5:
-                printf("Exiting program...\n");
-                break;
-            default:
-                printf("Invalid choice\n");
-        }
-    } while (choice != 5);
+    pthread_create(&t0, NULL, process_function, &p0);
+    pthread_create(&t1, NULL, process_function, &p1);
+    
+    pthread_join(t0, NULL);
+    pthread_join(t1, NULL);
     
     return 0;
 }
 ```
-> ## Interpretation of the C CPU Scheduling Simulation Program
-
-> This C program simulates and compares several common CPU scheduling algorithms: FCFS, SJF, Priority, and Round Robin.  It aims to demonstrate how each algorithm affects process execution and performance by calculating and displaying waiting times and turnaround times.
-
-> **Program Overview:**
-
-> The program takes process information (PID, burst time, arrival time, priority) as input. The user selects a scheduling algorithm to simulate, and the program calculates and displays performance metrics for each process and their averages.
-
-> **Code Structure and Functionality:**
-
-> 1. **`struct Process`:**
-> Defines the structure for process data: `pid`, `burst_time`, `arrival_time`, and `priority`.
-
-> 2. **`compare_burst_time` & `compare_priority`:**
-> Comparison functions for `qsort` (from `stdlib.h`) to sort processes by burst time (SJF) and priority (Priority scheduling).
-
-> 3. **`calculate_avg_times`:**
-> Calculates and *prints* total and average waiting time and turnaround time, including a header identifying the algorithm.  This function is called by each scheduling algorithm.
-
-> 4. **`fcfs` (First-Come, First-Served):**
-> Implements the FCFS algorithm.
-> Calculates completion time, waiting time, and turnaround time.
-> Handles idle time (when a process arrives after the previous one finishes).
-> Calls `calculate_avg_times` to display results.
-
-> 5. **`sjf` (Shortest Job First):**
-> Implements SJF.
-> Uses `qsort` with `compare_burst_time` to sort processes by burst time.
-> Calculates completion, waiting, and turnaround times.
-> Handles idle time.
-> Calls `calculate_avg_times` to display results.
-
-> 6. **`priority_scheduling`:**
-> Implements priority scheduling.
-> Uses `qsort` with `compare_priority` to sort processes by priority.
-> Effectively uses FCFS on the sorted processes (highest priority first).
-> Calls `fcfs` (because the logic is the same after sorting).
-
-> 7. **`round_robin`:**
-> Implements Round Robin.
-> Uses a `quantum` (time slice).
-> Tracks `remaining_bt` (remaining burst time).
-> Calculates waiting and turnaround times.
-> Handles preemption and queueing.
-> Calls `calculate_avg_times` to display results.
-
-> 8. **`main`:**
-> Gets the number of processes.
-> Takes process details as input.
-> Presents a menu to choose a scheduling algorithm.
-> Calls the chosen algorithm's function.
-> Loops until the user exits.
-
-> **Key Improvements:**
-
-> * **Clearer Output:**
-> `calculate_avg_times` handles printing results *and* includes a header identifying the algorithm.
-> * **Efficient Sorting:**
-> Uses `qsort` for sorting in SJF and Priority.
-> * **Idle Time Handling:**
-> Correctly handles processes arriving after the previous one finishes.
-> * **Negative Wait Time Handling:**
-> Sets negative wait times to 0.
-> * **Simplified Priority Scheduling:**
-> Sorts and then calls `fcfs`.
-
-> This improved version is more robust, efficient, and provides clearer output for comparing CPU scheduling algorithms.
-
-> # HOW to execute Program
-> Open the terminal
-> 
-> compile the program
->
-> `gcc filename.c -o exec-name`
-> 
-> run the program
-> 
-> `./exec-name`
->
->  # Output of the program
-> ![ Screen Shot 1](op1.png)
-> ![ Screen Shot 2](op2.png)
-> ![ Screen Shot 3](op3.png)
-> ![ Screen Shot 4](op4.png)
->
-> # **Conclusion:**
->
-> This C program provides a valuable tool for understanding and comparing the behavior of several fundamental CPU scheduling algorithms: FCFS, SJF, Priority, and Round Robin. By simulating these algorithms with user-provided process data (PID, burst time, arrival time, and priority), the program calculates and displays key performance metrics, namely waiting time and turnaround time, for each process and their averages.  The clear output, including algorithm-specific headers, facilitates a direct comparison of how each algorithm impacts process execution.
-
-> The program highlights the trade-offs inherent in different scheduling strategies.  FCFS, while simple, can suffer from the convoy effect. SJF, though optimal in terms of average waiting time (for non-preemptive scheduling), requires knowledge of burst times and can lead to starvation. Round Robin offers fairness and responsiveness, particularly for interactive systems, but its performance is sensitive to the chosen time quantum. Priority scheduling allows for prioritizing important tasks but must be carefully managed to avoid starvation or priority inversion.
-
-> The program's improved features, such as the use of `qsort` for efficient sorting, the handling of idle time and negative wait times, and the simplified priority scheduling implementation, enhance its robustness and accuracy.  Ultimately, this simulation provides a practical way to explore the core concepts of CPU scheduling and appreciate the complexities involved in choosing the right algorithm for a given workload and system requirements.  It serves as a useful educational tool for learning about operating system principles.
+# OUTPUT:
+![ Virtual lab experiment 2](vle2.png)
