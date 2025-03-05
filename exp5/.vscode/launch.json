@@ -1,0 +1,13 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "C/C++ Runner: Debug Session",
+      "type": "lldb",
+      "request": "launch",
+      "args": [],
+      "cwd": "/Users/DAKSHAYANI/Documents/Operating-system-lab/Operating-system-lab/exp5",
+      "program": "/Users/DAKSHAYANI/Documents/Operating-system-lab/Operating-system-lab/exp5/build/Debug/outDebug"
+    }
+  ]
+}
